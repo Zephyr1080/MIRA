@@ -22,16 +22,18 @@ def combine(cm_score, splice_prob):
     return 1 - (1 - cm_score) * (1 - splice_prob)
 
 
-def label_for(p, low=0.35, high=0.65):
-    if p < low:
+def label_for(p, likely=0.5, most_likely=0.75):
+    """Three outcomes. A copy-move detection scores 0.77 or more, so it always
+    lands in the top tier; splicing alone needs a probability of 0.75 or more."""
+    if p < likely:
         return "Likely authentic"
-    if p < high:
-        return "Suspicious"
-    return "Likely tampered"
+    if p < most_likely:
+        return "Likely tampered"
+    return "Most likely tampered"
 
 
 def assess(image_path, model_path="models/splicing.joblib", cfg=None,
-           out_dir="results", low=0.35, high=0.65):
+           out_dir="results"):
     """Runs the full pipeline on one image and returns everything the UI shows."""
     cfg = cfg or CopyMoveConfig()
     r = analyze(image_path, model_path, cm_cfg=cfg, out_dir=out_dir)
@@ -41,7 +43,7 @@ def assess(image_path, model_path="models/splicing.joblib", cfg=None,
     p = combine(cm_s, sp)
     return {
         "likelihood": p,
-        "label": label_for(p, low, high),
+        "label": label_for(p),
         "copy_move_score": cm_s,
         "splicing_prob": sp,
         "model_found": Path(model_path).exists(),
