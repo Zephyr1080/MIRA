@@ -1,96 +1,124 @@
-# Image Forensics: Copy-Move & Splicing Detection
+# MIRA: Manipulated Image Recognition & Analysis
 
-Course project for **AML 502 – Computer Vision**. Classical CV only (no deep learning).
+Detects copy-move forgeries and splicing in images using classical computer vision and machine learning (no deep learning). Includes a small web app: upload an image and get a verdict of **Likely authentic**, **Likely tampered**, or **Most likely tampered**.
 
-- **Copy-move**: CLAHE → SIFT → self-matching → ratio test → **RANSAC affine verification** → forgery mask
-- **Splicing**: LBP + GLCM + Gabor texture features on YCrCb → SVM / Random Forest
-- **Evaluation**: pixel-level precision/recall/F1, image-level detection rate, false-positive rate, feature ablation
+Course project for AML 502, Computer Vision.
 
-## Structure
+**Live demo:** _add your Streamlit link here_
+
+## How it works
+
+**Copy-move detection** (a region duplicated within the same image)
+
+1. CLAHE contrast enhancement
+2. SIFT keypoints and descriptors
+3. Self-matching with Lowe's ratio test
+4. Iterative RANSAC with an affine transform model, so only geometrically consistent matches survive
+5. Forgery mask from the convex hull of inliers, cleaned with morphology
+
+This also reports the transform (rotation, scale, translation) of each copied region. Because a copy is identical to its source, both regions are marked and the detector cannot tell which one is the original.
+
+**Splicing detection** (content pasted in from another image)
+
+- Features on each YCrCb channel: LBP histograms, GLCM statistics, Gabor responses, and noise-residual co-occurrence features
+- Classifier: SVM or Random Forest, whichever scores better in 5-fold cross-validation
+- Output: an image-level probability. It does not localize the splice.
+
+**Verdict**
+
+The two detectors are combined into one score:
+
+| Result | When |
+|---|---|
+| Most likely tampered | A copy-move forgery is detected, or the splicing probability is 0.75 or higher |
+| Likely tampered | The splicing probability is between 0.5 and 0.75 |
+| Likely authentic | Everything else |
+
+## Project structure
+
 ```
-image-forensics/
-├── README.md
-├── requirements.txt
+MIRA/
+├── app.py                  # Streamlit web app
 ├── run.py                  # CLI: analyze | train | eval
 ├── make_demo.py            # builds a textured forged/authentic demo + ground-truth mask
+├── requirements.txt
 ├── forensics/
-│   ├── config.py           # all tunable parameters
+│   ├── config.py           # copy-move parameters
 │   ├── copy_move.py        # SIFT + RANSAC detector, mask, overlay
-│   ├── splicing.py         # LBP/GLCM/Gabor features, SVM/RF training, prediction
-│   ├── pipeline.py         # analyze(image) -> unified verdict
+│   ├── splicing.py         # features, training, prediction
+│   ├── pipeline.py         # analyze(image) -> verdict
+│   ├── scoring.py          # combines both detectors into one score and label
 │   └── metrics.py          # precision / recall / F1, TPR / FPR
-├── data/                   # put CASIA 2.0 here (Au/, Tp/) + demo images
-├── models/                 # trained splicing model (.joblib)
-└── results/                # overlays, masks, CSVs
+├── models/
+│   └── splicing.joblib     # trained splicing model
+├── data/
+│   └── demo/               # demo images
+└── results/                # overlays and masks written by run.py
+```
+
+## Setup
+
+Python 3.10 to 3.12 is recommended.
+
+```
+pip install -r requirements.txt
 ```
 
 ## Usage
-```bash
-pip install -r requirements.txt
-python make_demo.py                                   # textured demo images
-python run.py analyze data/demo/forged.png            # copy-move works without a model
-python run.py train --root data/CASIA2 --n 300        # needs CASIA2/Au and CASIA2/Tp
-python run.py analyze some_image.jpg                  # now includes splicing probability
-python run.py eval --forged data/forged_cm --gt data/gt --authentic data/Au --limit 100
-```
-Ground-truth masks are matched by name: `<image>_gt.png` or `<image>_mask.png`.
 
-In Colab: upload/unzip the folder, `!pip install -r requirements.txt`, then call
-`from forensics import analyze; analyze("img.jpg")` or run the CLI with `!python run.py ...`.
-
-## Changes vs. the original script  (`[FIX]` / `[ENHANCEMENT]` / `[NEW]`)
-
-| Tag | Where | What |
-|---|---|---|
-| [ENHANCEMENT] | copy_move.preprocess | CLAHE contrast enhancement before SIFT (Unit 1: histogram processing) |
-| [ENHANCEMENT] | copy_move.self_match | Lower SIFT contrast threshold (0.02) -> more keypoints in smooth areas |
-| [ENHANCEMENT] | copy_move.self_match | Exact BFMatcher instead of approximate FLANN |
-| [FIX] | copy_move.self_match | Self-match removed by index, not assumed to be `m[0]` |
-| [NEW] | copy_move.ransac_rounds | **RANSAC affine verification replaces DBSCAN**: matches must obey one geometric transform (Unit 3: homography, RANSAC, inliers/outliers) |
-| [NEW] | copy_move.ransac_rounds | Iterative RANSAC finds multiple copied regions; rejects degenerate transforms |
-| [NEW] | copy_move.build_mask | Binary forgery mask via convex hull + morphological closing + dilation (Unit 3: segmentation) |
-| [NEW] | copy_move.detect_copy_move | Returns estimated affine transform (rotation / scale / translation) per region |
-| [NEW] | copy_move.draw_overlay | Red-tinted region on top of the original match lines |
-| [FIX] | (removed) | Unused `matplotlib` import; fragile `i*2` DBSCAN index bookkeeping |
-| [FIX] | make_demo.py | Demo used a flat-colour square (no SIFT keypoints). Now a textured, rotated + scaled copy |
-| [NEW] | splicing.py | LBP + GLCM features on YCrCb channels -> SVM and Random Forest |
-| [ENHANCEMENT] | splicing._gabor_feats | Gabor filter bank features (Unit 2) |
-| [NEW] | splicing.train | Train/test split, classification report, confusion matrix, best-model selection |
-| [NEW] | splicing.train | Feature ablation: LBP vs GLCM vs LBP+GLCM vs +Gabor |
-| [NEW] | pipeline.py | Unified `analyze()` returning a single verdict |
-| [NEW] | metrics.py | Pixel P/R/F1, image-level TPR, false-positive rate, CSV export |
-| [NEW] | config.py | All parameters in one dataclass |
-
-## Syllabus mapping
-| Topic | Syllabus unit | Used in |
-|---|---|---|
-| Histogram processing / enhancement | Unit 1 (Labs 2-3) | CLAHE |
-| Texture, feature vectors, preprocessing | Unit 2 | LBP, GLCM, scaling, SVM/RF |
-| Gabor filters | Unit 2 | splicing features |
-| SIFT / DoG | Unit 2 (Labs 5-7) | keypoints |
-| Affine / projective transforms | Unit 1, 3 | RANSAC transform model |
-| RANSAC, inliers/outliers | Unit 3 (Labs 8-9) | match verification |
-| Segmentation | Unit 3 | mask generation |
-
-## Known limitations (put these in the report)
-- Smooth or uniform regions give few SIFT keypoints, so copies there can be missed.
-- Repetitive structures (windows, tiles) can still produce false positives.
-- Heavy JPEG compression or blur lowers keypoint repeatability.
-- The hull-of-keypoints mask under-covers patch edges.
-- Splicing detection is texture-statistics based, so accuracy is limited versus deep-learning methods.
-
-## Suggested future work
-Harris/SURF comparison, image pyramids for strong scaling, region growing / Graph-Cut mask refinement, DWT features.
-
-## Web app
-
-A simple page: upload an image and get a tampering likelihood.
+**Web app**
 
 ```
-pip install -r requirements.txt
 streamlit run app.py
 ```
 
-- Needs `models/splicing.joblib` (train it with `python run.py train ...`). Without it, only copy-move detection runs.
-- The likelihood combines a copy-move score (from RANSAC inliers, a formula) and the splicing classifier's probability (about 69% accuracy on a CASIA-derived subset). It is a screening tool, not proof.
-- Deploy on Streamlit Community Cloud: push the repo (including the model file) and set `app.py` as the entry point.
+**Command line**
+
+```
+python make_demo.py                                    # create demo images
+python run.py analyze data/demo/forged.png             # copy-move works without a model
+python run.py train --root data/CASIA2 --n 500         # needs Au/ and Tp/ folders
+python run.py analyze some_image.jpg                   # now includes splicing probability
+python run.py eval --forged data/forged_cm --gt data/gt --authentic data/Au --limit 100
+```
+
+Ground-truth masks are matched by name: `<image>_gt.png` or `<image>_mask.png`.
+
+`python run.py train` takes `--no-gabor` and `--no-residual` to leave out a feature family.
+
+## Results
+
+Splicing classifier, trained on 500 images per class from a CASIA 2.0 derived dataset. Random Forest F1 by feature set on a held-out 20% split (200 images):
+
+| Features | F1 |
+|---|---|
+| LBP | 0.670 |
+| GLCM | 0.608 |
+| LBP + GLCM | 0.715 |
+| LBP + GLCM + Gabor | 0.701 |
+| Residual only | 0.747 |
+| LBP + GLCM + Residual | 0.756 |
+| All features | 0.758 |
+
+5-fold cross-validation F1 of the selected model: _fill in from your training output_
+
+Noise-residual features were the largest single improvement over texture features alone. With a 200-image test set, differences of a few points are within noise.
+
+Copy-move detection was checked on the synthetic demo and on individual real examples. Add your `eval` results here if you run them on a labeled set.
+
+## Limitations
+
+- Smooth or uniform regions give few SIFT keypoints, so copies there can be missed.
+- Repetitive structures (windows, tiles) can cause false positives.
+- Heavy JPEG compression or blur lowers keypoint repeatability.
+- The keypoint-hull mask under-covers the edges of copied regions.
+- Copy-move marks both the source and the copy.
+- Splicing detection gives only an image-level estimate, and its accuracy is far below deep-learning methods.
+- The splicing model was trained on an amplified, re-compressed copy of CASIA 2.0. Authentic and tampered images came from different JPEG quality levels, so part of what it learned may be compression differences. Real-world accuracy may be lower.
+- Retouching and AI-generated images are not covered.
+
+This is a screening tool, not proof of tampering.
+
+## Possible future work
+
+Patch-based features, the original CASIA 2.0 images, Harris/SURF comparison, image pyramids for strong scaling, region growing or Graph-Cut mask refinement, DWT features.
