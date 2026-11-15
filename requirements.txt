@@ -1,5 +1,7 @@
-opencv-python>=4.5
+opencv-python-headless>=4.5
 numpy
 scikit-image
 scikit-learn
 joblib
+streamlit>=1.30
+pillow

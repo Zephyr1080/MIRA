@@ -25,6 +25,7 @@ def main():
     t.add_argument("--root", required=True, help="folder containing Au/ and Tp/")
     t.add_argument("--n", type=int, default=300, help="images per class")
     t.add_argument("--no-gabor", action="store_true")
+    t.add_argument("--no-residual", action="store_true")
     t.add_argument("--out", default="models/splicing.joblib")
 
     e = sub.add_parser("eval")
@@ -44,7 +45,7 @@ def main():
             print(f"Splicing prob. : {r['splicing_prob']:.2f}")
         print(f"Overlay saved  : {r['overlay_path']}")
     elif args.cmd == "train":
-        train(args.root, args.n, not args.no_gabor, args.out)
+        train(args.root, args.n, not args.no_gabor, args.out, use_residual=not args.no_residual)
     elif args.cmd == "eval":
         evaluate_copy_move(args.forged, args.gt, args.authentic, args.limit)
 

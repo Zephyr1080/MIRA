@@ -81,3 +81,16 @@ In Colab: upload/unzip the folder, `!pip install -r requirements.txt`, then call
 
 ## Suggested future work
 Harris/SURF comparison, image pyramids for strong scaling, region growing / Graph-Cut mask refinement, DWT features.
+
+## Web app
+
+A simple page: upload an image and get a tampering likelihood.
+
+```
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+- Needs `models/splicing.joblib` (train it with `python run.py train ...`). Without it, only copy-move detection runs.
+- The likelihood combines a copy-move score (from RANSAC inliers, a formula) and the splicing classifier's probability (about 69% accuracy on a CASIA-derived subset). It is a screening tool, not proof.
+- Deploy on Streamlit Community Cloud: push the repo (including the model file) and set `app.py` as the entry point.
