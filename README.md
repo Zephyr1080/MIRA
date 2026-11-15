@@ -2,9 +2,6 @@
 
 Detects copy-move forgeries and splicing in images using classical computer vision and machine learning (no deep learning). Includes a small web app: upload an image and get a verdict of **Likely authentic**, **Likely tampered**, or **Most likely tampered**.
 
-Course project for AML 502, Computer Vision.
-
-**Live demo:** _add your Streamlit link here_
 
 ## How it works
 
