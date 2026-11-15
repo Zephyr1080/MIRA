@@ -1,7 +1,5 @@
 # Image Forensics: Copy-Move & Splicing Detection
 
-Course project for **AML 502 – Computer Vision**. Classical CV only (no deep learning).
-
 - **Copy-move**: CLAHE → SIFT → self-matching → ratio test → **RANSAC affine verification** → forgery mask
 - **Splicing**: LBP + GLCM + Gabor texture features on YCrCb → SVM / Random Forest
 - **Evaluation**: pixel-level precision/recall/F1, image-level detection rate, false-positive rate, feature ablation
