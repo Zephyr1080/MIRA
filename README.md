@@ -1,6 +1,5 @@
 # MIRA: Manipulated Image Recognition & Analysis
 
-<<<<<<< HEAD
 Detects copy-move forgeries and splicing in images using classical computer vision and machine learning (no deep learning). Includes a small web app: upload an image and get a verdict of **Likely authentic**, **Likely tampered**, or **Most likely tampered**.
 
 Course project for AML 502, Computer Vision.
@@ -40,7 +39,7 @@ The two detectors are combined into one score:
 - **Copy-move**: CLAHE → SIFT → self-matching → ratio test → **RANSAC affine verification** → forgery mask
 - **Splicing**: LBP + GLCM + Gabor texture features on YCrCb → SVM / Random Forest
 - **Evaluation**: pixel-level precision/recall/F1, image-level detection rate, false-positive rate, feature ablation
->>>>>>> 4972b7ebe8086b9857632ed2f7323ea7ee9f7f81
+
 
 ```
 MIRA/
